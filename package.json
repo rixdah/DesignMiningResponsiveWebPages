@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "build": "docker build -t design-mining .",
-    "dev": "docker run -it --rm --ipc=host --user pwuser --security-opt seccomp=seccomp_profile.json --mount type=bind,src=\"$(pwd)\",target=/app -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=${DISPLAY:-:0} design-mining ts-node --esm index.ts",
+    "dev": "docker run -it --rm --ipc=host --user pwuser --security-opt seccomp=seccomp_profile.json --mount type=bind,src=\"$(pwd)\",target=/app -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=${DISPLAY:-:0} design-mining ts-node --esm main.ts",
     "start": "docker run -it --rm --ipc=host --user pwuser --security-opt seccomp=seccomp_profile.json -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=${DISPLAY:-:0} design-mining /bin/bash"
   },
   "author": "",
