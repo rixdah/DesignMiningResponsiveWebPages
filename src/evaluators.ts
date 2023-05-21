@@ -12,8 +12,6 @@ async function evaluateDimensions(locator: Locator) {
   return [dataKey, data] as const;
 }
 
-async function evaluateBootstrapButton(locator: Locator) {}
-
 /**
  * Each evaluator is a function that takes a `Locator` as the
  * only argument, returning a tuple of the type of data the function

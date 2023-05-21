@@ -1,6 +1,10 @@
+import fs from "fs"
 import { Browser, Locator, Page } from "playwright";
+
+
 import { locators } from "./locators";
 import { evaluators } from "./evaluators";
+import { runInsertQuery } from "./database";
 
 /**
  * Applies each locator to a page, returning a list of tuples with
@@ -21,8 +25,18 @@ async function evaluateElement(locator: Locator) {
   const data = await Promise.all(
     evaluators.map((evaluator) => evaluator(locator))
   );
-  const dataObj: Record<string, unknown> = Object.fromEntries(data);
-  return dataObj;
+  return Object.fromEntries(data);
+}
+
+/**
+ * Draws an outline around the located elements, so that they can
+ * easily be identified in debug screenshots
+ */
+async function outlineElement(locator: Locator) {
+  locator.evaluate(element => {
+    element.style.outline = "3px dashed red";
+    element.style.outlineOffset = "3px";
+  });
 }
 
 /**
@@ -30,11 +44,11 @@ async function evaluateElement(locator: Locator) {
  * the type of the data item as should be returned by the locator, and
  * the url of the site the element was scraped from.
  */
-function augmentData(
-  data: Record<string, unknown>[],
+function augmentData<T extends Record<string, unknown>>(
+  data: T[],
   url: string,
   itemType: string
-): Record<string, unknown>[] {
+) {
   const augmentedData = data.map((item) => ({
     type: itemType,
     site: url,
@@ -56,11 +70,22 @@ async function generateResults(
   const results = await Promise.all(
     elements.map(async ([itemType, elements]) => {
       const data = await Promise.all(elements.map(evaluateElement));
+
+      if (process.env.DEBUG === 'true') {
+        // Draw element outlines if debug set to true
+        await Promise.all(elements.map(outlineElement))
+      }
+
       const augmentedData = augmentData(data, url, itemType);
       return augmentedData;
     })
   );
   return results.flat(1);
+}
+
+/** Returns a folder path where site files should be stored */
+function getSiteFolder(url: string) {
+  return `output/${new URL(url).host}`;
 }
 
 /**
@@ -69,13 +94,74 @@ async function generateResults(
  * then we run each evaluator on each element found to generate a data
  * represetation of whatever we are interested in.
  */
-export async function scrape(browser: Browser, url: string) {
-  const page = await browser.newPage();
+export async function scrape(browser: Browser, url: string, resolution: number[]) {
+  const screenWidth = resolution[0];
+  const screenHeight = resolution[1];
+
+  // Parse and evaluate the page
+  const page = await browser.newPage({
+    viewport: { width: screenWidth, height: screenHeight },
+  });
+
   await page.goto(url);
   await page.waitForLoadState("networkidle");
 
   const elements = await locateElements(page);
   const results = await generateResults(elements, url);
+
+  // Store results
+  const screenshotPath = `${getSiteFolder(url)}/${screenWidth}x${screenHeight}.png`;
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+
+  const siteId = await runInsertQuery("Website", {
+    url,
+    screenshot: screenshotPath,
+    width: screenWidth,
+    height: screenHeight,
+  });
+
+  await Promise.all(results.map(result => {
+    return runInsertQuery("Element", {
+      website: siteId,
+      type: result.type,
+      text: result.text,
+      x: result.dimensions?.x,
+      y: result.dimensions?.y,
+      width: result.dimensions?.width,
+      height: result.dimensions?.height
+    })
+  }));
+
+  page.close()
+  return results;
+}
+
+/**
+ * Scrapes the given website once for each different resolution, saving the
+ * results into the database and filesystem
+ */
+export async function processWebsite(browser: Browser, url: string, resolutions: number[][]) {
+  // Create filesystem storage for screenshots
+  const folderName = getSiteFolder(url);
+  if (!fs.existsSync(folderName)) {
+    fs.mkdirSync(folderName);
+  }
+
+  // Scrape and save data
+  let results = [];
+
+  if (process.env.DEBUG === 'true') {
+    // Process resolutions one at a time
+    for (const resolution of resolutions) {
+      results.push(...(await scrape(browser, url, resolution)));
+    }
+  } else {
+    // Process resolutions in parallel
+    const res = await Promise.all(resolutions.map(resolution => {
+      return scrape(browser, url, resolution);
+    }))
+    results = res.flat(1);
+  }
 
   return results;
 }
