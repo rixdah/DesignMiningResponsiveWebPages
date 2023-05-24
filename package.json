@@ -10,7 +10,8 @@
     "debug": "DEBUG=true npm run dev",
     "shell": "docker run -it --rm --ipc=host --user pwuser --security-opt seccomp=seccomp_profile.json -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=${DISPLAY:-:0} design-mining /bin/bash",
     "init-db": "ts-node scripts/init-database.ts",
-    "clean-db": "rm output/db.sqlite3"
+    "clean-db": "rm output/db.sqlite3",
+    "clean": "rm -rf output"
   },
   "author": "",
   "license": "MIT",

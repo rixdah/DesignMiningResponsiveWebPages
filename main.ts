@@ -25,7 +25,7 @@ const urls = [
   "https://telegram.org/",
   "https://www.paypal.com/fi/home",
   "https://www.brandbucket.com/",
-  "https://www.imdb.com/"
+  "https://www.imdb.com/",
 ];
 
 const resolutions = [
@@ -34,7 +34,7 @@ const resolutions = [
   [360, 800], // Mobile
 ];
 
-const browser = await chromium.launch({ headless: false });
+const browser = await chromium.launch({ headless: process.env.DEBUG !== "true" });
 
 let results = [];
 
@@ -47,5 +47,5 @@ for (const url of urls) {
 await browser.close();
 
 console.log("Scraping done.");
-console.log(`Scraped ${urls.length} websites with ${resolutions.length} resolutions.`)
-console.log(`Found total ${results.length} elements.`)
+console.log(`Scraped ${urls.length} websites with ${resolutions.length} resolutions.`);
+console.log(`Found total ${results.length} elements.`);

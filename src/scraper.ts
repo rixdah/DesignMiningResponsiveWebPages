@@ -1,6 +1,5 @@
-import fs from "fs"
+import fs from "fs";
 import { Browser, Locator, Page } from "playwright";
-
 
 import { locators } from "./locators";
 import { evaluators } from "./evaluators";
@@ -33,7 +32,7 @@ async function evaluateElement(locator: Locator) {
  * easily be identified in debug screenshots
  */
 async function outlineElement(locator: Locator) {
-  locator.evaluate(element => {
+  locator.evaluate((element) => {
     element.style.outline = "3px dashed red";
     element.style.outlineOffset = "3px";
   });
@@ -71,9 +70,9 @@ async function generateResults(
     elements.map(async ([itemType, elements]) => {
       const data = await Promise.all(elements.map(evaluateElement));
 
-      if (process.env.DEBUG === 'true') {
+      if (process.env.DEBUG === "true") {
         // Draw element outlines if debug set to true
-        await Promise.all(elements.map(outlineElement))
+        await Promise.all(elements.map(outlineElement));
       }
 
       const augmentedData = augmentData(data, url, itemType);
@@ -94,7 +93,11 @@ function getSiteFolder(url: string) {
  * then we run each evaluator on each element found to generate a data
  * represetation of whatever we are interested in.
  */
-export async function scrape(browser: Browser, url: string, resolution: number[]) {
+export async function scrape(
+  browser: Browser,
+  url: string,
+  resolution: number[]
+) {
   const screenWidth = resolution[0];
   const screenHeight = resolution[1];
 
@@ -103,8 +106,12 @@ export async function scrape(browser: Browser, url: string, resolution: number[]
     viewport: { width: screenWidth, height: screenHeight },
   });
 
-  await page.goto(url);
-  await page.waitForLoadState("networkidle");
+  try {
+    await page.goto(url);
+    await page.waitForLoadState("networkidle");
+  } catch (e) {
+    console.log(`${url}: ERROR: ${e}`);
+  }
 
   const elements = await locateElements(page);
   const results = await generateResults(elements, url);
@@ -120,19 +127,21 @@ export async function scrape(browser: Browser, url: string, resolution: number[]
     height: screenHeight,
   });
 
-  await Promise.all(results.map(result => {
-    return runInsertQuery("Element", {
-      website: siteId,
-      type: result.type,
-      text: result.text,
-      x: result.dimensions?.x,
-      y: result.dimensions?.y,
-      width: result.dimensions?.width,
-      height: result.dimensions?.height
+  await Promise.all(
+    results.map((result) => {
+      return runInsertQuery("Element", {
+        website: siteId,
+        type: result.type,
+        text: result.text,
+        x: result.dimensions?.x,
+        y: result.dimensions?.y,
+        width: result.dimensions?.width,
+        height: result.dimensions?.height,
+      });
     })
-  }));
+  );
 
-  page.close()
+  page.close();
   return results;
 }
 
@@ -140,7 +149,12 @@ export async function scrape(browser: Browser, url: string, resolution: number[]
  * Scrapes the given website once for each different resolution, saving the
  * results into the database and filesystem
  */
-export async function processWebsite(browser: Browser, url: string, resolutions: number[][]) {
+export async function processWebsite(
+  browser: Browser,
+  url: string,
+  resolutions: number[][]
+) {
+  console.log(`${url}: Scraping...`);
   // Create filesystem storage for screenshots
   const folderName = getSiteFolder(url);
   if (!fs.existsSync(folderName)) {
@@ -150,18 +164,13 @@ export async function processWebsite(browser: Browser, url: string, resolutions:
   // Scrape and save data
   let results = [];
 
-  if (process.env.DEBUG === 'true') {
-    // Process resolutions one at a time
-    for (const resolution of resolutions) {
-      results.push(...(await scrape(browser, url, resolution)));
-    }
-  } else {
-    // Process resolutions in parallel
-    const res = await Promise.all(resolutions.map(resolution => {
-      return scrape(browser, url, resolution);
-    }))
-    results = res.flat(1);
-  }
+  // Process resolutions in parallel
+  const res = await Promise.all(
+    resolutions.map((resolution) => scrape(browser, url, resolution))
+  );
+  results = res.flat(1);
+
+  console.log(`${url}: Done.`);
 
   return results;
 }
