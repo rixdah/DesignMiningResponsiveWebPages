@@ -1,7 +1,6 @@
-import fs from "fs"
+import fs from "fs";
 
 import { db } from "../src/database";
-
 
 const initScript = fs.readFileSync("./scripts/init.sql").toString();
 // Convert the SQL string to array so that you can run them one at a time.
