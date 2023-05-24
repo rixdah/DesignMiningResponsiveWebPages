@@ -111,6 +111,7 @@ export async function scrape(
     await page.waitForLoadState("networkidle");
   } catch (e) {
     console.log(`${url}: ERROR: ${e}`);
+    return [];
   }
 
   const elements = await locateElements(page);

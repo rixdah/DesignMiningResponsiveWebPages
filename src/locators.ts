@@ -14,7 +14,13 @@ async function locateButtons(page: Page) {
 
 async function locateNavbars(page: Page) {
   const elementType = "Navbar";
-  const foundElements = await page.locator(".navbar").all()
+  const foundElements = await page.locator(".navbar").all();
+  return [elementType, foundElements] as const;
+}
+
+async function locateLinks(page: Page) {
+  const elementType = "Link";
+  const foundElements = await page.locator("a").all();
   return [elementType, foundElements] as const;
 }
 
@@ -23,4 +29,4 @@ async function locateNavbars(page: Page) {
  * a tuple of element type and a list of all elements of the type
  * that were found by the locator on the page.
  */
-export const locators = [locateButtons, locateHeadings, locateNavbars];
+export const locators = [locateButtons, locateHeadings, locateNavbars, locateLinks];
